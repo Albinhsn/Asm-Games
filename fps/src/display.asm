@@ -19,17 +19,16 @@ section .text
 
 %macro SWAP 2
   mov rax, %1
-  mov rbx, %2
-  mov %1, rbx
+  mov %1, %2
   mov %2, rax
 %endmacro
 
-%macro PROLOGUE
+%macro PROLOGUE 0
   push rbp
   mov rbp, rsp
 %endmacro
 
-%macro EPILOGUE 
+%macro EPILOGUE 0
   mov rsp, rbp
   pop rbp
   ret
@@ -43,139 +42,128 @@ section .text
 ; rcx -  the start y coordinate
 ; r8  -  the end x coordinate
 ; r9  -  the end y coordinate
-; r10 -  the width of the buffer
+; r10 -  the width of the buffer ; on the stack *
 write_line:
   PROLOGUE
 
-  sub rsp, 128
-  mov [rsp],      rdi ; pointer to buffer
-  mov [rsp + 8],  rsi ; color
-  mov [rsp + 16], rdx ; start x
-  mov [rsp + 24], rcx ; start y
-  mov [rsp + 32], r8  ; end x
-  mov [rsp + 40], r9  ; end y 
-  mov [rsp + 48], r10 ; width of buffer
-  ; [rsp + 56]          steep
-  ; [rsp + 64]          dx 
-  ; [rsp + 72]          dy
-  ; [rsp + 88]          derror
-  ; [rsp + 96]          downwards
+  ; rdi pointer to buffer
+  ; rsi color
+  ; rbx  start x
+  ; rcx  start y
+  ; r8 end x
+  ; r9 end y
+  ; r10  steep
+  ; r11 dx
+  ; r12 dy
+  ; r13 downwards
+  ; r14 derror
+  ; r15 width of buffer
 
+  sub rsp, 48
+  mov [rsp], rbx
+  mov [rsp + 8], r12 
+  mov [rsp + 16], r13
+  mov [rsp + 24], r14
+  mov [rsp + 32], r15
+  mov r15, [rbp + 16]
 
 ; check steep
+  mov rbx, rdx
   mov rax, rdx
   sub rax, r8
   ABS64 rax
 
-  mov rbx, rcx
-  sub rbx, r9
-  ABS64 rbx
+  mov rdx, rcx
+  sub rdx, r9
+  ABS64 rdx
 
-  cmp rax, rbx
+  cmp rax, rdx
   jge not_steep
-    SWAP [rsp + 16], [rsp + 24] 
-    SWAP [rsp + 32], [rsp + 40] 
+    SWAP rbx, r8
+    SWAP rcx, r9
 
-    mov QWORD [rsp + 56], 1
+    mov r10, 1
     jmp steep_merge
 
 not_steep:
-  mov QWORD [rsp + 56], 0
+    xor r10, r10
 steep_merge:
 
   ; change smallest -> largest
-  mov rax, [rsp + 16]
-  mov rbx, [rsp + 32]
-  cmp rax, rbx
+  cmp rdx, r8 
   jle start_is_less 
 
-  SWAP [rsp + 16], [rsp + 32]
-  SWAP [rsp + 24], [rsp + 40]
+  SWAP rbx, r8
+  SWAP rcx, r9
 
 start_is_less:
 
   ; calculate dy/dx
   ; dx
-  mov rax, [rsp  + 32] 
-  mov rbx, [rsp  + 16]
-  sub rax, rbx
-  mov [rsp + 64], rax
+  mov r11, r8
+  sub r11, rbx
 
   ; dy
-  mov rcx, [rsp  + 40] 
-  mov rdx, [rsp  + 24]
-  sub rcx, rdx
-  imul rcx, 2
-  cmp rcx, 0
+  mov r12, r9
+  sub r12, rcx
+  add r12, r12
+  cmp r12, 0
   jge upwards
 
 downwards:
-  ABS64 rcx 
-  mov QWORD [rsp + 96], -1
+  ABS64 r12 
+  mov r13, -1
   jmp up_merge
 
 upwards:
-  mov QWORD [rsp + 96], 1
+  mov r13, 1
 
 up_merge:
-
-  mov [rsp + 72], rcx ; dy
-  mov QWORD [rsp + 88], 0 ; derror
+  xor r14, r14
 
 
   ; go from start x to end x
 line_loop_head:
-  mov rax, [rsp + 16]
-  mov rbx, [rsp + 32]
-  cmp rax, rbx
+  cmp rbx, r8
   jge line_loop_end
 
-
-  mov rdi, [rsp]
-  
-  mov rax, [rsp + 56]
-  cmp rax, 1
-  je steep_pixel 
-  mov rcx, [rsp + 24]
-  mov r9,  [rsp + 16]
-  
-jmp steep_pixel_merge
-steep_pixel:
-  mov r9, [rsp + 24]
-  mov rcx,  [rsp + 16]
-  
-steep_pixel_merge:
-
-  mov rsi, [rsp + 8]
-  mov r8,  [rsp + 48]
-  call write_pixel
-
-  mov rax, [rsp + 72]
-  mov rbx, [rsp + 88]
+  cmp r10, 0
+  je was_steep
+  mov rax, r15
+  mul rcx
+  jmp was_steep_merge
+was_steep:
+  mov rax, rcx
+  imul rax, r15
+was_steep_merge:
   add rax, rbx
-  mov rcx, [rsp + 64] ; dx
-  mov [rsp + 88], rax
-  cmp rax, rcx
+  mov DWORD [rdi + rax * 4], esi
+
+  ; derror += dy;
+  add r14, r12
+
+  cmp r14, r11
   jle increase_y_merge
   
-  mov rax, [rsp + 96]
-  mov rbx, [rsp + 24]
-  add rax, rbx
-  mov [rsp + 24], rax
+  ; y = downwards ? y - 1 : y + 1;
+  add rcx, r13
   
-  imul rcx, 2
-  mov rbx, [rsp + 88] 
-  sub rbx, rcx
-  mov [rsp + 88], rbx
-
+  lea rax, [r11 + r11]
+  sub r14, rax
     
 increase_y_merge:
-  add QWORD [rsp + 16], 1
+  inc rbx
   jmp line_loop_head
 
 line_loop_end:
-
+  mov rbx, [rsp]
+  mov r12, [rsp + 8]
+  mov r13, [rsp + 16]
+  mov r14, [rsp + 24]
+  mov r15, [rsp + 32]
   EPILOGUE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; rdi - is a pointer to the buffer
 ; rsi - is the color to place of an int

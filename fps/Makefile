@@ -16,6 +16,8 @@ obj/%.o: src/%.asm
 
 clean:
 	rm -rf obj/ $(TARGET)
+tester:
+	gcc ./repetition_tester.cpp ./obj/display.o -O2 -o repetition_tester
 
 .PHONY: all clean
 
