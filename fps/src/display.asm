@@ -3,6 +3,7 @@
 global write_pixel
 global write_line
 global write_unfilled_quad
+global write_filled_quad
 
 global clear_buffer
 
@@ -251,6 +252,55 @@ write_unfilled_quad:
   mov r9,   [rsp + 32]
   call write_line
 
+
+  EPILOGUE
+
+; rsi -  is a pointer to the buffer
+; rax -  is the color to place (32 bit) 
+; rdx -  the start x cordinate
+; rcx -  the start y coordinate
+; r8  -  the end x coordinate
+; r9  -  the end y coordinate
+; stack -  the width of the buffer ; on the stack *
+write_filled_quad:
+  PROLOGUE
+
+
+  ; rbx  - x count
+  ; rsi  -  current pointer
+  ; r9   - end pointer
+  ; r10  - width * 4
+
+  mov rbx, r8
+  sub rbx, rdx
+
+  ; just the start x offset in 
+  lea rsi, [rsi + rdx * 4]
+
+  ; the width of a buffer * 4
+  mov r10, [rbp + 16]
+  lea r10, [r10 * 4]
+
+  ; end pointer
+  imul r9, r10
+  lea r9, [rsi + r9]
+
+  ; start pointer
+  imul r8, rcx
+  lea rsi, [rsi + r8]
+
+  
+  filled_quad_head:
+  cmp rsi, r9
+  je filled_quad_merge
+
+  mov rdi, rsi
+  mov rcx, rbx
+  rep stosd
+
+  add rsi, r10
+  jmp filled_quad_head
+  filled_quad_merge:
 
   EPILOGUE
   
