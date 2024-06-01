@@ -265,7 +265,6 @@ write_unfilled_quad:
 write_filled_quad:
   PROLOGUE
 
-
   ; rbx  - x count
   ; rsi  -  current pointer
   ; r9   - end pointer
@@ -304,3 +303,43 @@ write_filled_quad:
 
   EPILOGUE
   
+
+; rdi - is a pointer to the buffer
+; rsi - the color to clear with
+; rdx - orig x
+; rcx - orig y
+; r8  - r
+; r9  - the width of the buffer
+write_filled_circle:
+  
+  PROLOGUE
+
+  ; rbx r squared
+  mov rbx, r8
+  imul rbx, rbx
+
+
+  ; r10 x
+  mov r10, rdx
+  sub r10, r8
+circle_x_head:
+  mov rax, rdx
+  add rax, r10
+  cmp r8, rax
+  jg circle_merge
+  
+  ; r11 y
+  mov r11, rcx
+  sub r11, r8
+circle_y_head:
+  mov rax, rcx
+  add rax, r11
+  cmp r8, rax
+  jg circle_merge
+
+
+
+
+circle_merge:
+
+  EPILOGUE
