@@ -7,6 +7,7 @@ extern clear_buffer
 extern update_window
 extern write_pixel
 extern write_line
+extern write_unfilled_quad
 
 section .data:
   screen_width equ 620
@@ -41,9 +42,9 @@ main_loop:
 
   mov rdi, [rsp]
   mov rsi, 0xFF00FFFF
-  mov rdx, 0
-  mov rcx, 0  
-  mov r8,  500
+  mov rdx, 100
+  mov rcx, 0
+  mov r8,  100
   mov r9, 200
   sub rsp, 16
   mov QWORD [rsp], screen_width

@@ -2,6 +2,8 @@
 
 global write_pixel
 global write_line
+global write_unfilled_quad
+
 global clear_buffer
 
 extern printf
@@ -42,7 +44,7 @@ section .text
 ; rcx -  the start y coordinate
 ; r8  -  the end x coordinate
 ; r9  -  the end y coordinate
-; r10 -  the width of the buffer ; on the stack *
+; stack -  the width of the buffer ; on the stack *
 write_line:
   PROLOGUE
 
@@ -121,7 +123,6 @@ upwards:
 up_merge:
   xor r14, r14
 
-
   ; go from start x to end x
 line_loop_head:
   cmp rbx, r8
@@ -194,3 +195,61 @@ clear_buffer:
   rep stosd
 
   EPILOGUE
+
+;;;;;;;;;;;;
+
+
+; rdi - is a pointer to the buffer
+; rsi - the color to clear with
+; rdx - start x
+; rcx - start y
+; r8 - end x  
+; r9 - end y 
+; stack - the width of the buffer
+
+write_unfilled_quad:
+  PROLOGUE
+
+; rdi -  is a pointer to the buffer
+; rsi -  is the color to place (32 bit) 
+; rdx -  the start x cordinate
+; rcx -  the start y coordinate
+; r8  -  the end x coordinate
+; r9  -  the end y coordinate
+; stack -  the width of the buffer ; on the stack *
+
+  sub rsp, 48
+  mov rax, [rbp + 16]
+  mov [rsp], rax
+  mov [rsp + 8], rdx
+  mov [rsp + 16], rcx
+  mov [rsp + 24], r8
+  mov [rsp + 32], r9
+
+  ; start x, start y -> end x start y
+  mov r9, rcx
+  call write_line
+
+  ; start x, start y -> start x end y
+  mov rdx,  [rsp + 8]
+  mov rcx,  [rsp + 16]
+  mov r8,   [rsp + 8]
+  mov r9,   [rsp + 32]
+  call write_line
+
+  ; end x, start y -> end x end y
+  mov rdx,  [rsp + 24]
+  mov rcx,  [rsp + 16]
+  mov r8,   [rsp + 24]
+  mov r9,   [rsp + 32]
+  call write_line
+  ; start x, end y -> end x end y
+  mov rdx,  [rsp + 8]
+  mov rcx,  [rsp + 32]
+  mov r8,   [rsp + 24]
+  mov r9,   [rsp + 32]
+  call write_line
+
+
+  EPILOGUE
+  
