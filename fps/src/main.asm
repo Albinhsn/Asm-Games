@@ -42,13 +42,13 @@ main_loop:
 
   mov rdi, [rsp]
   mov rsi, 0xFF00FFFF
-  mov rdx, 100
+  mov rdx, 0
   mov rcx, 0
-  mov r8,  100
+  mov r8,  200 
   mov r9, 200
   sub rsp, 16
   mov QWORD [rsp], screen_width
-  call write_line
+  call write_unfilled_quad
   add rsp, 16
 
   ; update window

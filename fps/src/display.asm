@@ -68,6 +68,7 @@ write_line:
   mov [rsp + 24], r14
   mov [rsp + 32], r15
   mov r15, [rbp + 16]
+  xor r10, r10
 
 ; check steep
   mov rbx, rdx
@@ -81,18 +82,13 @@ write_line:
 
   cmp rax, rdx
   jge not_steep
-    SWAP rbx, r8
-    SWAP rcx, r9
-
+    SWAP rbx, rcx
+    SWAP r8, r9
     mov r10, 1
-    jmp steep_merge
-
 not_steep:
-    xor r10, r10
-steep_merge:
 
   ; change smallest -> largest
-  cmp rdx, r8 
+  cmp rbx, r8 
   jle start_is_less 
 
   SWAP rbx, r8
@@ -128,16 +124,21 @@ line_loop_head:
   cmp rbx, r8
   jge line_loop_end
 
-  cmp r10, 0
+  ; rbx  start x
+  ; rcx  start y
+  ; r8 end x
+  ; r9 end y
+  cmp r10, 1
   je was_steep
   mov rax, r15
   mul rcx
+  add rax, rbx
   jmp was_steep_merge
 was_steep:
-  mov rax, rcx
+  mov rax, rbx
   imul rax, r15
+  add rax, rcx
 was_steep_merge:
-  add rax, rbx
   mov DWORD [rdi + rax * 4], esi
 
   ; derror += dy;
