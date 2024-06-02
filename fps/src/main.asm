@@ -11,6 +11,7 @@ extern write_unfilled_quad
 extern write_filled_quad
 extern write_filled_circle
 extern malloc
+extern sqrt
 
 %macro PROLOGUE 0
   push rbp
@@ -32,13 +33,19 @@ section .data:
   spawn_position_x dq 2.0
   spawn_position_y dq 2.0
   player_width equ 4
-
+  player_fov dq 75.0
+  player_rotation dq 0
   player_color db 0xFF, 0xFF, 0x00, 0xFF
+  number_of_rays equ 620
+  ray_step_size dq 0.2
+
+  temp_ray_dir_x dq 0
+  temp_ray_dir_y dq 0.2
 
 section .text
   main: 
   
-  sub rsp, 56
+  sub rsp, 72
   lea rdi, [rsp]      ; buffer 
   lea rsi, [rsp + 8]  ; window
   mov rdx, screen_width
@@ -57,16 +64,6 @@ section .text
 
 main_loop:
 
-  ; mov rsi, [rsp]
-  ; mov rax, 0xFF00FFFF
-  ; mov rdx, 0
-  ; mov rcx, 0
-  ; mov r8,  620 
-  ; mov r9, 480
-  ; sub rsp, 16
-  ; mov QWORD [rsp], screen_width
-  ; call write_filled_quad
-  ; add rsp, 16
   lea rdi, [rsp + 16]
   mov rsi, [rsp]
   mov rcx, screen_width
@@ -136,6 +133,10 @@ init_map:
   mov QWORD [rdi + 24],  rax
   mov rax, [spawn_position_y]
   mov QWORD [rdi + 32], rax
+  mov rax, [player_fov]
+  mov QWORD [rdi + 40], rax
+  mov rax, [player_rotation]
+  mov QWORD [rdi + 48], rax
 
   ; width and height
   mov rdi, grid_width
@@ -256,25 +257,22 @@ render_debug_map_x_merge:
 
   ; render player
   
-; rdi is the float position
-; rsi is grid width/height
-; rcx is buffer width/height
   mov rax, [rsp]
-  mov rdi, [rax + 24]
+  movsd xmm0, [rax + 24]
   mov rsi, [rax + 8]
   mov rcx, [rsp + 16]
 
   
-  call convert_player_position
+  call convert_float_position
   sub rsp, 16
   mov [rsp], rax
 
   mov rax, [rsp + 16]
-  mov rdi, [rax + 32]
+  movsd xmm0, [rax + 32]
   mov rsi, [rax + 16]
   mov rcx, [rsp + 40]
 
-  call convert_player_position
+  call convert_float_position
   mov rcx, rax
   mov rdx, [rsp]
   add rsp, 16
@@ -291,13 +289,49 @@ render_debug_map_x_merge:
 ; r9  - the width of the buffer
   call write_filled_circle
 
-  EPILOGUE
+  
+  mov rdi, [rsp]
+  mov rax, [spawn_position_x]
+  movq xmm0, rax
+  mov rax, [spawn_position_y]
+  movq xmm1, rax
+  mov rax, [temp_ray_dir_x]
+  movq xmm2, rax
+  mov rax, [temp_ray_dir_y]
+  movq xmm3, rax
 
-; rdi is the float position
+  call cast_ray
+  ; xmm0 is x 
+  ; xmm1 is y
+
+  ; convert to pixel locations
+; xmm0 is the float position
 ; rsi is grid width/height
 ; rcx is buffer width/height
 ; returns result in rax
-convert_player_position:
+  call convert_float_position
+  call convert_float_position
+  call convert_float_position
+  call convert_float_position
+
+; rdi -  is a pointer to the buffer
+; rsi -  is the color to place (32 bit) 
+; rdx -  the start x cordinate
+; rcx -  the start y coordinate
+; r8  -  the end x coordinate
+; r9  -  the end y coordinate
+; stack -  the width of the buffer ; on the stack *
+  call write_line
+
+
+
+  EPILOGUE
+
+; xmm0 is the float position
+; rsi is grid width/height
+; rcx is buffer width/height
+; returns result in rax
+convert_float_position:
   ; get total width of block
   ; convert to float 
   ; divide player_x with total
@@ -305,13 +339,53 @@ convert_player_position:
   ; multiply with the divide result
   ; convert back to int
   ; is orig x
+  cvtsi2sd xmm1, rsi
+  divsd xmm0, xmm1
+  cvtsi2sd xmm1, rcx
+  mulsd xmm1, xmm0
+  cvtsd2si rax, xmm1
+
+  ret
+
+; rdi map pointer
+; rsi x
+; rcx y
+; returns in rax the tile
+get_map_tile: 
+  ; width
+  mov rax, [rdi + 8]
+  imul rcx, rax
+  add rsi, rcx
+  mov rax, [rdi]
+  mov BYTE al, [rax + rsi]
+  movsx rax, al
+
+  ret
+
+
+
+; rdi map pointer
+; xmm0 x position 
+; xmm1 y position
+; xmm2 ray x direction
+; xmm3 ray y direction
+
+; return xmm0 x, xmm1 y
+cast_ray:
   PROLOGUE
-  cvtsi2sd xmm0, rsi
-  movq xmm1, rdi
-  divsd xmm1, xmm0
-  cvtsi2sd xmm0, rcx
-  mulsd xmm0, xmm1
-  cvtsd2si rax, xmm0
+  
+  movsd xmm4, xmm0
+  movsd xmm5, xmm1
+
+cast_ray_head:
+  addsd xmm0, xmm2
+  addsd xmm1, xmm3
+  cvtsd2si rsi, xmm0
+  cvtsd2si rcx, xmm1
+  call get_map_tile
+  cmp rax, 0
+  je cast_ray_head
 
   EPILOGUE
+
 

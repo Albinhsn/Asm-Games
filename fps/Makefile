@@ -1,4 +1,4 @@
-LDFLAGS := -lc -lSDL2
+LDFLAGS := -lm -lc -lSDL2
 TARGET = main
 
 
