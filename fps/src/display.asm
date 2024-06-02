@@ -300,7 +300,7 @@ write_filled_quad:
 
   add rsi, r10
   jmp filled_quad_head
-  filled_quad_merge:
+filled_quad_merge:
 
   EPILOGUE
   
