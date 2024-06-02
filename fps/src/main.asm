@@ -168,6 +168,7 @@ render_debug_map:
 
   ; figure out width and height of each grid block 
   mov rax, rcx
+  sar rax, 1
   mov rcx, [rdi + 8]
   xor rdx, rdx
   idiv rcx
