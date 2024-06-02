@@ -286,13 +286,13 @@ write_filled_quad:
   lea r9, [rsi + r9]
 
   ; start pointer
-  imul r8, rcx
-  lea rsi, [rsi + r8]
+  imul rcx, r10
+  lea rsi, [rsi + rcx]
 
   
   filled_quad_head:
   cmp rsi, r9
-  je filled_quad_merge
+  jge filled_quad_merge
 
   mov rdi, rsi
   mov rcx, rbx
