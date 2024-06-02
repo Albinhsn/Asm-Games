@@ -9,6 +9,7 @@ extern write_pixel
 extern write_line
 extern write_unfilled_quad
 extern write_filled_quad
+extern write_filled_circle
 
 section .data:
   screen_width equ 620
@@ -34,23 +35,19 @@ section .text
 
 main_loop:
 
-; rsi -  is a pointer to the buffer
-; rax -  is the color to place (32 bit) 
-; rdx -  the start x cordinate
-; rcx -  the start y coordinate
-; r8  -  the end x coordinate
-; r9  -  the end y coordinate
-; stack -  the width of the buffer ; on the stack *
-  mov rsi, [rsp]
-  mov rax, 0xFF00FFFF
-  mov rdx, 0
-  mov rcx, 0
-  mov r8,  200 
-  mov r9, 200
-  sub rsp, 16
-  mov QWORD [rsp], screen_width
-  call write_filled_quad
-  add rsp, 16
+; rdi - is a pointer to the buffer
+; rsi - the color to clear with
+; rdx - orig x
+; rcx - orig y
+; r8  - r
+; r9  - the width of the buffer
+  mov rdi, [rsp]
+  mov rsi, 0xFF00FFFF
+  mov rdx, 100
+  mov rcx, 100
+  mov r8,  50
+  mov r9,  screen_width
+  call write_filled_circle
 
   ; update window
   mov rdi, [rsp + 8]

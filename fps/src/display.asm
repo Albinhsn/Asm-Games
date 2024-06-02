@@ -4,6 +4,7 @@ global write_pixel
 global write_line
 global write_unfilled_quad
 global write_filled_quad
+global write_filled_circle
 
 global clear_buffer
 
@@ -17,7 +18,7 @@ section .text
 
 ; flip sign on 64 bit
 %macro ABS64 1
-    imul %1, -1
+    neg %1
 %endmacro
 
 %macro SWAP 2
@@ -171,14 +172,14 @@ line_loop_end:
 ; rdi - is a pointer to the buffer
 ; rsi - is the color to place of an int
 ; rcx - the y coordinate
-; r8  - the width of the buffer
-; r9 - the x coordinate
+; r8 - the x coordinate
+; r9  - the width of the buffer
 write_pixel:
   PROLOGUE
 
-  mov rax, r8
+  mov rax, r9
   mul rcx
-  add rax, r9
+  add rax, r8
   mov DWORD [rdi + rax * 4], esi
 
   EPILOGUE
@@ -313,33 +314,53 @@ write_filled_quad:
 write_filled_circle:
   
   PROLOGUE
+  sub rsp, 16
+  mov [rsp], r12
+  mov [rsp], r13
 
   ; rbx r squared
   mov rbx, r8
   imul rbx, rbx
 
-
   ; r10 x
-  mov r10, rdx
-  sub r10, r8
+  mov r10, r8
+  neg r10
 circle_x_head:
-  mov rax, rdx
-  add rax, r10
-  cmp r8, rax
-  jg circle_merge
-  
+  cmp r8, r10
+  jl circle_x_merge
+
+  ; calc x diff
+  mov r13, r10
+  imul r13, r13
   ; r11 y
-  mov r11, rcx
-  sub r11, r8
+  mov r11, r8
+  neg r11
 circle_y_head:
-  mov rax, rcx
-  add rax, r11
-  cmp r8, rax
-  jg circle_merge
+  cmp r8, r11
+  jl circle_y_merge
 
+  ; calc y diff
+  mov rax, r11
+  imul rax, rax
+  add rax, r13
 
+  ; check if within r_squared
+  cmp rbx, rax
+  jl circle_y_update
 
+  lea r12, [r11 + rcx]
+  imul r12, r9
+  lea rax, [r10 + rdx]
+  add rax, r12
 
-circle_merge:
+  mov DWORD [rdi + rax * 4], esi
+circle_y_update:
+  inc r11
+  jmp circle_y_head
+circle_y_merge:
+  inc r10
+  jmp circle_x_head
+circle_x_merge:
+  mov r12, [rsp]
 
   EPILOGUE
