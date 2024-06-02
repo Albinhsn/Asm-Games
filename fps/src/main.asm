@@ -29,11 +29,16 @@ section .data:
 
   grid_width equ 20
   grid_height equ 20
+  spawn_position_x dq 2.0
+  spawn_position_y dq 2.0
+  player_width equ 4
+
+  player_color db 0xFF, 0xFF, 0x00, 0xFF
 
 section .text
   main: 
   
-  sub rsp, 40
+  sub rsp, 56
   lea rdi, [rsp]      ; buffer 
   lea rsi, [rsp + 8]  ; window
   mov rdx, screen_width
@@ -127,6 +132,10 @@ init_map:
   ; store it into the struct
   mov QWORD [rdi + 8], grid_width
   mov QWORD [rdi + 16], grid_height 
+  mov rax, [spawn_position_x]
+  mov QWORD [rdi + 24],  rax
+  mov rax, [spawn_position_y]
+  mov QWORD [rdi + 32], rax
 
   ; width and height
   mov rdi, grid_width
@@ -245,4 +254,64 @@ render_debug_map_x_update:
 
 render_debug_map_x_merge:
 
+  ; render player
+  
+; rdi is the float position
+; rsi is grid width/height
+; rcx is buffer width/height
+  mov rax, [rsp]
+  mov rdi, [rax + 24]
+  mov rsi, [rax + 8]
+  mov rcx, [rsp + 16]
+
+  
+  call convert_player_position
+  sub rsp, 16
+  mov [rsp], rax
+
+  mov rax, [rsp + 16]
+  mov rdi, [rax + 32]
+  mov rsi, [rax + 16]
+  mov rcx, [rsp + 40]
+
+  call convert_player_position
+  mov rcx, rax
+  mov rdx, [rsp]
+  add rsp, 16
+  
+  mov r8, player_width
+  mov DWORD esi, [player_color]
+  mov rdi, [rsp + 8]
+  mov r9, [rsp + 16]
+; rdi - is a pointer to the buffer
+; rsi - the color to clear with
+; rdx - orig x
+; rcx - orig y
+; r8  - r
+; r9  - the width of the buffer
+  call write_filled_circle
+
   EPILOGUE
+
+; rdi is the float position
+; rsi is grid width/height
+; rcx is buffer width/height
+; returns result in rax
+convert_player_position:
+  ; get total width of block
+  ; convert to float 
+  ; divide player_x with total
+  ; convert the width of the buffer / 2 to float
+  ; multiply with the divide result
+  ; convert back to int
+  ; is orig x
+  PROLOGUE
+  cvtsi2sd xmm0, rsi
+  movq xmm1, rdi
+  divsd xmm1, xmm0
+  cvtsi2sd xmm0, rcx
+  mulsd xmm0, xmm1
+  cvtsd2si rax, xmm0
+
+  EPILOGUE
+
